@@ -12,17 +12,19 @@ class Rollout
       @name    = name
 
       if string
-        raw_percentage,raw_users,raw_groups = string.split("|")
+        raw_percentage,raw_users,raw_groups,raw_blacklist_users,raw_blacklist_groups = string.split("|")
         @percentage = raw_percentage.to_f
         @users = (raw_users || "").split(",").map(&:to_s).to_set
         @groups = (raw_groups || "").split(",").map(&:to_sym).to_set
+        @blacklist_users = (raw_blacklist_users || "").split(",").map(&:to_s).to_set
+        @blacklist_groups = (raw_blacklist_groups || "").split(",").map(&:to_sym).to_set
       else
         clear
       end
     end
 
     def serialize
-      "#{@percentage}|#{@users.to_a.join(",")}|#{@groups.to_a.join(",")}"
+      "#{@percentage}|#{@users.to_a.join(",")}|#{@groups.to_a.join(",")}|#{@blacklist_users.to_a.join(",")}|#{@blacklist_groups.to_a.join(",")}"
     end
 
     def add_user(user)
@@ -34,6 +36,10 @@ class Rollout
       @users.delete(user_id(user))
     end
 
+    def blacklist_user(user)
+      @blacklist_users << user_id(user)
+    end
+
     def add_group(group)
       @groups << group.to_sym unless @groups.include?(group.to_sym)
     end
@@ -42,14 +48,20 @@ class Rollout
       @groups.delete(group.to_sym)
     end
 
+    def blacklist_group(group)
+      @blacklist_groups << group.to_sym
+    end
+
     def clear
       @groups = Set.new
       @users = Set.new
+      @blacklist_users = Set.new
+      @blacklist_groups = Set.new
       @percentage = 0
     end
 
     def active?(rollout, user)
-      if user
+      if user && !user_in_blacklist?(user) && !user_in_blacklist_group?(user, rollout)
         id = user_id(user)
         user_in_percentage?(id) ||
           user_in_active_users?(id) ||
@@ -61,6 +73,16 @@ class Rollout
 
     def user_in_active_users?(user)
       @users.include?(user_id(user))
+    end
+
+    def user_in_blacklist?(user)
+      @blacklist_users.include?(user_id(user))
+    end
+
+    def user_in_blacklist_group?(user, rollout)
+      @blacklist_groups.any? do |g|
+        rollout.in_group?(g, user)
+      end
     end
 
     def to_hash
@@ -98,7 +120,7 @@ class Rollout
 
       def user_in_active_group?(user, rollout)
         @groups.any? do |g|
-          rollout.active_in_group?(g, user)
+          rollout.in_group?(g, user)
         end
       end
   end
@@ -150,6 +172,12 @@ class Rollout
     end
   end
 
+  def blacklist_group(feature, group)
+    with_feature(feature) do |f|
+      f.blacklist_group(group)
+    end
+  end
+
   def activate_user(feature, user)
     with_feature(feature) do |f|
       f.add_user(user)
@@ -162,6 +190,12 @@ class Rollout
     end
   end
 
+  def blacklist_user(feature, user)
+    with_feature(feature) do |f|
+      f.blacklist_user(user)
+    end
+  end
+
   def activate_users(feature, users)
     with_feature(feature) do |f|
       users.each{|user| f.add_user(user)}
@@ -171,6 +205,12 @@ class Rollout
   def deactivate_users(feature, users)
     with_feature(feature) do |f|
       users.each{|user| f.remove_user(user)}
+    end
+  end
+
+  def blacklist_users(feature, users)
+    with_feature(feature) do |f|
+      users.each{|user| f.blacklist_user(user)}
     end
   end
 
@@ -204,7 +244,7 @@ class Rollout
     end
   end
 
-  def active_in_group?(group, user)
+  def in_group?(group, user)
     f = @groups[group.to_sym]
     f && f.call(user)
   end

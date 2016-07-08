@@ -24,6 +24,12 @@ RSpec.describe "Rollout" do
       @rollout.activate_group(:chat, :fake)
       expect(@rollout).not_to be_active(:chat, double(id: 1))
     end
+
+    it "is active for a matching user even after explicit deactivation" do
+      user = double(id: 5)
+      @rollout.deactivate_user(:chat, user)
+      expect(@rollout).to be_active(:chat, user)
+    end
   end
 
   describe "the default all group" do
@@ -316,6 +322,101 @@ RSpec.describe "Rollout" do
 
     it "becomes inactivate" do
       expect(@rollout).not_to be_active(:chat)
+    end
+  end
+
+  describe "blacklisting users" do
+    let(:users) { [double(id: 1), double(id: 2), double(id: 3)] }
+
+    before do
+      @rollout.define_group(:test_group) { |user| true }
+    end
+
+    context "one user" do
+      it "deactivates the feature for a user even if the user belongs to an activated group" do
+        @rollout.activate_group(:chat, :test_group)
+        expect(@rollout).to be_active(:chat, users[0])
+
+        @rollout.blacklist_user(:chat, users[0])
+        expect(@rollout).not_to be_active(:chat, users[0])
+      end
+
+      it "prevents the user from matching based on percentage" do
+        @rollout.activate_percentage(:chat, 200)
+        expect(@rollout).to be_active(:chat, users[0])
+
+        @rollout.blacklist_user(:chat, users[0])
+        expect(@rollout).not_to be_active(:chat, users[0])
+      end
+
+      it "considers the feature enabled for the users if globally enabled" do
+        @rollout.activate(:chat)
+
+        @rollout.blacklist_user(:chat, users[0])
+        expect(@rollout).to be_active(:chat, users[0])
+      end
+    end
+
+    context "multiple users" do
+      it "deactivates the feature for a user even if the user belongs to an activated group" do
+        @rollout.activate_group(:chat, :test_group)
+        expect(@rollout).to be_active(:chat, users[0])
+        expect(@rollout).to be_active(:chat, users[1])
+
+        @rollout.blacklist_users(:chat, [users[0], users[1]])
+        expect(@rollout).not_to be_active(:chat, users[0])
+        expect(@rollout).not_to be_active(:chat, users[1])
+      end
+
+      it "prevents the user from matching based on percentage" do
+        @rollout.activate_percentage(:chat, 200)
+        expect(@rollout).to be_active(:chat, users[0])
+        expect(@rollout).to be_active(:chat, users[1])
+
+        @rollout.blacklist_users(:chat, [users[0], users[1]])
+        expect(@rollout).not_to be_active(:chat, users[0])
+        expect(@rollout).not_to be_active(:chat, users[1])
+      end
+
+      it "considers the feature enabled for the users if globally enabled" do
+        @rollout.activate(:chat)
+
+        @rollout.blacklist_users(:chat, [users[0], users[1]])
+        expect(@rollout).to be_active(:chat, users[0])
+        expect(@rollout).to be_active(:chat, users[2])
+      end
+    end
+  end
+
+  describe "blacklisting groups" do
+    let(:users) { [double(id: 1), double(id: 2), double(id: 3)] }
+
+    before do
+      @rollout.define_group(:test_group) { |user| true }
+      @rollout.define_group(:blacklist_group) { |user| user.id == users[0].id }
+    end
+
+    it "deactivates the feature for a user even if the user belongs to an activated group" do
+      @rollout.activate_group(:chat, :test_group)
+      expect(@rollout).to be_active(:chat, users[0])
+
+      @rollout.blacklist_group(:chat, :blacklist_group)
+      expect(@rollout).not_to be_active(:chat, users[0])
+    end
+
+    it "prevents the user from matching based on percentage" do
+      @rollout.activate_percentage(:chat, 200)
+      expect(@rollout).to be_active(:chat, users[0])
+
+      @rollout.blacklist_group(:chat, :blacklist_group)
+      expect(@rollout).not_to be_active(:chat, users[0])
+    end
+
+    it "considers the feature enabled for the users if globally enabled" do
+      @rollout.activate(:chat)
+
+      @rollout.blacklist_group(:chat, :blacklist_group)
+      expect(@rollout).to be_active(:chat, users[0])
     end
   end
 

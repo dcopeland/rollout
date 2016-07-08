@@ -128,6 +128,19 @@ $rollout = Rollout.new($redis, randomize_percentage: true)
 When on `randomize_percentage` will make sure that 50% of users for feature A
 are selected independently from users for feature B.
 
+## Blacklisting users and groups
+
+Deactivating a user or group removes that user or group from a whitelist, but does not prevent it from appearing in another whitelist. For example, you can deactivate a user but still find the feature enabled for the user based on a group membership or percentage.
+
+Blacklisted users and groups, on the other hand, will find the feature disabled even if whitelisted by group or percentage:
+
+```ruby
+$rollout.blacklist_user(:chat, @bigwig_user)
+$rollout.blacklist_group(:chat, :critical_clients)
+```
+
+Globally enabled features will be enabled even for blacklisted users and groups.
+
 ## Global actions
 
 While groups can come in handy, the actual global setter for a feature does not require a group to be passed.
