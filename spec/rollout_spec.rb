@@ -355,6 +355,15 @@ RSpec.describe "Rollout" do
         @rollout.blacklist_user(:chat, users[0])
         expect(@rollout).to be_active(:chat, users[0])
       end
+
+      it "can be reversed" do
+        @rollout.activate_group(:chat, :test_group)
+        @rollout.blacklist_user(:chat, users[0])
+        expect(@rollout).not_to be_active(:chat, users[0])
+
+        @rollout.unblacklist_user(:chat, users[0])
+        expect(@rollout).to be_active(:chat, users[0])
+      end
     end
 
     context "multiple users" do
@@ -384,6 +393,17 @@ RSpec.describe "Rollout" do
         @rollout.blacklist_users(:chat, [users[0], users[1]])
         expect(@rollout).to be_active(:chat, users[0])
         expect(@rollout).to be_active(:chat, users[2])
+      end
+
+      it "can be reversed" do
+        @rollout.activate_group(:chat, :test_group)
+        @rollout.blacklist_users(:chat, [users[0], users[1]])
+        expect(@rollout).not_to be_active(:chat, users[0])
+        expect(@rollout).not_to be_active(:chat, users[1])
+
+        @rollout.unblacklist_users(:chat, [users[0], users[1]])
+        expect(@rollout).to be_active(:chat, users[0])
+        expect(@rollout).to be_active(:chat, users[1])
       end
     end
   end
@@ -416,6 +436,15 @@ RSpec.describe "Rollout" do
       @rollout.activate(:chat)
 
       @rollout.blacklist_group(:chat, :blacklist_group)
+      expect(@rollout).to be_active(:chat, users[0])
+    end
+
+    it "can be reversed" do
+      @rollout.activate_group(:chat, :test_group)
+      @rollout.blacklist_group(:chat, :blacklist_group)
+      expect(@rollout).not_to be_active(:chat, users[0])
+
+      @rollout.unblacklist_group(:chat, :blacklist_group)
       expect(@rollout).to be_active(:chat, users[0])
     end
   end

@@ -40,6 +40,10 @@ class Rollout
       @blacklist_users << user_id(user)
     end
 
+    def unblacklist_user(user)
+      @blacklist_users.delete(user_id(user))
+    end
+
     def add_group(group)
       @groups << group.to_sym unless @groups.include?(group.to_sym)
     end
@@ -50,6 +54,10 @@ class Rollout
 
     def blacklist_group(group)
       @blacklist_groups << group.to_sym
+    end
+
+    def unblacklist_group(group)
+      @blacklist_groups.delete(group.to_sym)
     end
 
     def clear
@@ -178,6 +186,12 @@ class Rollout
     end
   end
 
+  def unblacklist_group(feature, group)
+    with_feature(feature) do |f|
+      f.unblacklist_group(group)
+    end
+  end
+
   def activate_user(feature, user)
     with_feature(feature) do |f|
       f.add_user(user)
@@ -196,6 +210,12 @@ class Rollout
     end
   end
 
+  def unblacklist_user(feature, user)
+    with_feature(feature) do |f|
+      f.unblacklist_user(user)
+    end
+  end
+
   def activate_users(feature, users)
     with_feature(feature) do |f|
       users.each{|user| f.add_user(user)}
@@ -211,6 +231,12 @@ class Rollout
   def blacklist_users(feature, users)
     with_feature(feature) do |f|
       users.each{|user| f.blacklist_user(user)}
+    end
+  end
+
+  def unblacklist_users(feature, users)
+    with_feature(feature) do |f|
+      users.each{|user| f.unblacklist_user(user)}
     end
   end
 
